@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Tickets QR</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Estilo del ticket QR */
+    .qr-ticket {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 5px;
+      width: 30%;
+      min-width: 200px; /* Tamaño mínimo para tickets */
+      max-width: 300px; /* Tamaño máximo para tickets */
+    }
+
+    /* Estilo responsivo */
+    @media (max-width: 576px) {
+      .qr-ticket {
+        width: 80%; /* Adaptar al ancho en móviles */
+      }
+    }
+
+    /* Estilos para la impresión */
+    @media print {
+      body * {
+        visibility: hidden; /* Oculta todos los elementos */
+      }
+      #ticket-list, #ticket-list * {
+        visibility: visible; /* Hace visibles solo los tickets */
+      }
+      #ticket-list {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: grid; /* Utiliza grid para la impresión */
+        grid-template-columns: repeat(3, 1fr); /* Tres columnas */
+        gap: 10px; /* Espaciado entre tickets */
+        max-width: 100%; /* Asegúrate de que no se desborde */
+      }
+    }
+
+    /* Tamaño del QR en búsqueda */
+    .search-qr {
+      width: 75px; /* Tamaño reducido del QR al buscar */
+    }
+  </style>
+</head>
+<body>
+  <!-- Contenedor para el inicio de sesión -->
+  <div id="login" class="container mt-5">
+    <h1 class="text-center">Iniciar Sesión</h1>
+    <div class="row mt-4">
+      <div class="col-md-6 offset-md-3">
+        <form id="login-form">
+          <div class="mb-3">
+            <label for="username" class="form-label">Usuario</label>
+            <input type="text" class="form-control" id="username" required>
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Contraseña</label>
+            <input type="password" class="form-control" id="password" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Iniciar Sesión</button>
+        </form>
+        <div id="login-error" class="text-danger mt-2" style="display: none;">Usuario o contraseña incorrectos.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mt-5" id="app" style="display: none;">
+    <h1 class="text-center">Sistema de Tickets QR</h1>
+    
+    <!-- Botones para manejar acciones -->
+    <div class="text-center mt-4">
+      <button id="print-btn" class="btn btn-success">Imprimir Tickets</button>
+      <button id="count-btn" class="btn btn-info">Consultar Tickets Existentes</button>
+      <button id="used-tickets-btn" class="btn btn-warning">Consultar Tickets Usados</button>
+      <button id="delete-btn" class="btn btn-danger">Eliminar Todos los Tickets</button>
+    </div>
+
+    <!-- Formulario para buscar un ticket -->
+    <div class="row mt-4">
+      <div class="col-md-6 offset-md-3">
+        <input type="text" class="form-control mb-3" id="search-ticket" placeholder="Buscar por código de ticket">
+        <div id="search-result"></div>
+      </div>
+    </div>
+
+    <!-- Formulario para generar tickets -->
+    <div class="row mt-4">
+      <div class="col-md-6 offset-md-3">
+        <div class="card p-4">
+          <h3>Generar Ticket</h3>
+          <form id="ticket-form">
+            <div class="mb-3">
+              <label for="ticket-count" class="form-label">Número de Tickets a Generar</label>
+              <input type="number" class="form-control" id="ticket-count" min="1" value="1">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Generar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de tickets generados -->
+    <div class="row mt-4">
+      <div class="col-md-12">
+        <h3 class="text-center">Tickets Generados</h3>
+        <div id="ticket-list" class="d-flex flex-wrap justify-content-center">
+          <!-- Los tickets se mostrarán aquí -->
+        </div>
+      </div>
+    </div>
+    
+    <!-- Contenedor para mostrar el conteo de tickets -->
+    <div class="text-center mt-3">
+      <h5 id="ticket-count-info">Total de Tickets: 0</h5>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script src="app.js"></script>
+
+  <script>
+    // Función para manejar el inicio de sesión
+    document.getElementById('login-form').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      
+      // Validar usuario y contraseña
+      if (username === 'yuli' && password === 'cantina1234') {
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+      } else {
+        document.getElementById('login-error').style.display = 'block'; // Mostrar error
+      }
+    });
+
+    // Manejar el envío del formulario de tickets
+    document.getElementById('ticket-form').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const count = document.getElementById('ticket-count').value;
+
+      for (let i = 0; i < count; i++) {
+          generateTicket();
+      }
+      
+      // Limpiar el campo de entrada después de generar los tickets
+      document.getElementById('ticket-count').value = '';
+      loadExistingTickets(); // Cargar tickets existentes después de generar
+    });
+
+    // Manejar la impresión de los tickets
+    document.getElementById('print-btn').addEventListener('click', function() {
+      window.print(); // Utiliza la función de impresión del navegador
+    });
+  </script>
+</body>
+</html>
